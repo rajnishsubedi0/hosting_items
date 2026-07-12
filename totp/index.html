@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://worldtimeapi.org https://timeapi.io; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none';">
+  <title>TOTP Console</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      background:#0d0d0d;
+      color:#e8e8e8;
+      font-family:'SFMono-Regular',Consolas,monospace;
+      padding:24px;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+    }
+    .wrap{
+      max-width:820px;
+      width:100%;
+      margin:0 auto;
+    }
+    
+    .panel{
+      background:#1a1a1a;
+      border:1px solid #2a2a2a;
+      border-radius:8px;
+      padding:22px 24px;
+      margin-bottom:16px;
+      transition:border-color 0.2s;
+    }
+    .panel:hover{border-color:#3a3a3a;}
+    
+    .header{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom:6px;
+    }
+    .logo{
+      width:28px;
+      height:28px;
+      background:linear-gradient(135deg,#4d6bfe,#6d4bfe);
+      border-radius:6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      font-size:14px;
+      color:#fff;
+    }
+    h1{
+      font-family:'Inter',-apple-system,sans-serif;
+      font-weight:600;
+      font-size:22px;
+      letter-spacing:-0.3px;
+      background:linear-gradient(135deg,#e8e8e8 60%,#888);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+    .sub{
+      color:#888;
+      font-size:12px;
+      margin-left:40px;
+      letter-spacing:0.2px;
+    }
+    
+    .clock-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      font-size:11px;
+      color:#888;
+      margin-top:10px;
+      margin-left:40px;
+    }
+    .clock-chip{
+      border:1px solid #2a2a2a;
+      border-radius:4px;
+      padding:3px 10px;
+      background:#121212;
+      font-size:11px;
+    }
+    .chip-ok::before{content:"● ";color:#4ade80;}
+    .chip-warn::before{content:"● ";color:#f87171;}
+    .link-btn{
+      background:none;border:none;color:#6d8bfe;
+      font-family:inherit;font-size:11px;cursor:pointer;
+      padding:0;text-decoration:none;
+    }
+    .link-btn:hover{color:#8aa3fe;text-decoration:underline;}
+    
+    label{
+      display:block;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;
+      font-weight:500;
+    }
+    input,select{
+      width:100%;background:#121212;border:1px solid #2a2a2a;color:#e8e8e8;
+      font-family:inherit;font-size:13px;padding:8px 11px;border-radius:4px;outline:none;
+      transition:border-color 0.2s,box-shadow 0.2s;
+    }
+    input:focus,select:focus{border-color:#4d6bfe;box-shadow:0 0 0 3px rgba(77,107,254,0.15);}
+    input::placeholder{color:#555;}
+    .field{margin-bottom:12px;}
+    .field-row{display:flex;gap:10px;}
+    .field-row .field{flex:1;}
+    
+    .toggle-row{display:flex;gap:0;margin-bottom:14px;}
+    .toggle-row button{
+      background:#121212;border:1px solid #2a2a2a;color:#888;
+      font-family:inherit;font-size:11px;padding:5px 16px;cursor:pointer;
+      transition:all 0.2s;
+      font-weight:500;
+    }
+    .toggle-row button:first-child{border-radius:4px 0 0 4px;}
+    .toggle-row button:last-child{border-radius:0 4px 4px 0;border-left:none;}
+    .toggle-row button.active{
+      color:#e8e8e8;border-color:#4d6bfe;background:#1a1f3a;
+      box-shadow:inset 0 0 20px rgba(77,107,254,0.05);
+    }
+    .toggle-row button:hover:not(.active){color:#e8e8e8;border-color:#4a4a4a;}
+    
+    .btn-primary{
+      background:linear-gradient(135deg,#4d6bfe,#6d4bfe);
+      color:#fff;border:none;
+      font-family:inherit;font-weight:600;font-size:13px;
+      padding:10px 22px;border-radius:4px;cursor:pointer;
+      transition:all 0.25s;
+      letter-spacing:0.2px;
+    }
+    .btn-primary:hover{
+      transform:translateY(-1px);
+      box-shadow:0 4px 20px rgba(77,107,254,0.3);
+    }
+    .btn-primary:active{transform:translateY(0);}
+    .btn-danger{
+      background:transparent;color:#f87171;border:1px solid #3a1a1a;
+      font-family:inherit;font-size:10px;padding:4px 10px;border-radius:4px;cursor:pointer;
+      transition:all 0.2s;
+    }
+    .btn-danger:hover{background:#1a0a0a;border-color:#5a2a2a;}
+    
+    .err{color:#f87171;font-size:12px;margin-top:6px;min-height:16px;}
+    .ok{color:#4ade80;font-size:12px;margin-top:6px;min-height:16px;}
+    
+    #accounts{display:flex;flex-direction:column;gap:10px;}
+    .card{
+      border:1px solid #2a2a2a;border-radius:6px;padding:14px 16px;
+      background:#121212;display:flex;align-items:center;gap:14px;
+      transition:border-color 0.2s,background 0.2s;
+    }
+    .card:hover{border-color:#3a3a3a;background:#151515;}
+    .ring-wrap{position:relative;width:44px;height:44px;flex:0 0 auto;}
+    .ring-wrap svg{transform:rotate(-90deg);}
+    .ring-bg{fill:none;stroke:#2a2a2a;stroke-width:3.5;}
+    .ring-fg{fill:none;stroke:#4d6bfe;stroke-width:3.5;stroke-linecap:round;transition:stroke-dashoffset 0.5s ease,stroke 0.5s ease;}
+    .ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888;font-weight:500;}
+    .card-body{flex:1;min-width:0;}
+    .card-label{font-size:11px;color:#888;margin-bottom:2px;}
+    .card-label .issuer{color:#e8e8e8;font-weight:600;}
+    .card-code{
+      font-family:inherit;
+      font-size:clamp(20px,3.5vw,28px);
+      letter-spacing:.06em;
+      font-weight:700;
+      color:#e8e8e8;
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .card-code .code-display{
+      cursor:pointer;
+      user-select:all;
+      transition:color 0.2s;
+    }
+    .card-code .code-display:hover{color:#4d6bfe;}
+    .copy-btn-individual{
+      background:transparent;
+      border:1px solid #2a2a2a;
+      color:#888;
+      font-family:inherit;
+      font-size:10px;
+      padding:2px 10px;
+      border-radius:4px;
+      cursor:pointer;
+      transition:all 0.2s;
+      font-weight:400;
+      letter-spacing:0.02em;
+      opacity:0.6;
+      line-height:1.6;
+    }
+    .copy-btn-individual:hover{
+      border-color:#4d6bfe;
+      color:#e8e8e8;
+      background:#1a1f3a;
+      opacity:1;
+    }
+    .card-meta{font-size:10px;color:#666;margin-top:2px;}
+    .card-actions{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+    .copied-flag{font-size:10px;color:#4ade80;height:12px;font-weight:500;}
+    
+    .empty{color:#666;font-size:13px;text-align:center;padding:24px 0;font-style:italic;}
+    
+    @media(max-width:600px){
+      body{padding:12px;}
+      .panel{padding:16px;}
+      .field-row{flex-direction:column;gap:0;}
+      .card{flex-wrap:wrap;}
+      .card-actions{align-items:flex-start;width:100%;padding-left:58px;}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel">
+    <div class="header">
+      <div class="logo">◈</div>
+      <h1>TOTP Console</h1>
+    </div>
+    <div class="sub">RFC 6238 · Client-side · Web Crypto</div>
+    <div class="clock-row">
+      <span class="clock-chip" id="clockChip">Syncing…</span>
+      <span class="clock-chip" id="tzChip">TZ: —</span>
+      <button class="link-btn" id="resyncBtn">↻ resync</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="toggle-row">
+      <button type="button" id="modeManual" class="active">Manual</button>
+      <button type="button" id="modeUri">URI</button>
+    </div>
+
+    <div id="manualFields">
+      <div class="field-row">
+        <div class="field"><label>Issuer</label><input type="text" id="fIssuer" placeholder="GitHub"></div>
+        <div class="field"><label>Label</label><input type="text" id="fLabel" placeholder="user@example.com"></div>
+      </div>
+      <div class="field"><label>Secret (Base32)</label><input type="text" id="fSecret" placeholder="JBSWY3DPEHPK3PXP"></div>
+      <div class="field-row">
+        <div class="field"><label>Algorithm</label>
+          <select id="fAlgo"><option value="SHA-1" selected>SHA1</option><option value="SHA-256">SHA256</option><option value="SHA-512">SHA512</option></select>
+        </div>
+        <div class="field"><label>Digits</label>
+          <select id="fDigits"><option value="6" selected>6</option><option value="8">8</option></select>
+        </div>
+        <div class="field"><label>Period (s)</label><input type="text" id="fPeriod" value="30"></div>
+      </div>
+    </div>
+
+    <div id="uriField" style="display:none;">
+      <div class="field"><label>otpauth:// URI</label><input type="text" id="fUri" placeholder="otpauth://totp/Issuer:label?secret=..."></div>
+    </div>
+
+    <button class="btn-primary" id="addBtn">+ Add account</button>
+    <div class="err" id="formErr"></div>
+  </div>
+
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-size:12px;color:#888;">Active tokens</span>
+    </div>
+    <div id="accounts"><div class="empty">No accounts</div></div>
+  </div>
+
+</div>
+<script>
+(function(){
+  "use strict";
+
+  let timeOffsetMs = 0;
+  let timezoneName = null;
+
+  async function syncTime(){
+    const clockChip = document.getElementById('clockChip');
+    const tzChip = document.getElementById('tzChip');
+    clockChip.textContent = 'Syncing…';
+    clockChip.className = 'clock-chip';
+    try{
+      const before = Date.now();
+      const res = await fetch('https://worldtimeapi.org/api/ip', {cache:'no-store'});
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      const after = Date.now();
+      const serverMs = new Date(data.utc_datetime || data.datetime).getTime();
+      timeOffsetMs = (serverMs + (after - before)/2) - after;
+      timezoneName = data.timezone || 'UTC';
+      clockChip.innerHTML = 'Synced · ' + Math.round(timeOffsetMs) + ' ms';
+      clockChip.classList.add('chip-ok');
+      tzChip.innerHTML = 'TZ: <b>' + escapeHtml(timezoneName) + '</b>';
+    }catch(e){
+      timeOffsetMs = 0;
+      timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+      clockChip.innerHTML = 'Using device clock';
+      clockChip.classList.add('chip-warn');
+      tzChip.innerHTML = 'TZ: <b>' + escapeHtml(timezoneName) + '</b>';
+    }
+  }
+  function correctedNowMs(){ return Date.now() + timeOffsetMs; }
+
+  document.getElementById('resyncBtn').addEventListener('click', syncTime);
+  syncTime();
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
+
+  function base32ToBytes(input){
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    const clean = String(input).toUpperCase().replace(/=+$/,'').replace(/[^A-Z2-7]/g,'');
+    if(!clean) throw new Error('Invalid Base32');
+    let bits = '';
+    for(const ch of clean){
+      const val = alphabet.indexOf(ch);
+      if(val === -1) throw new Error('Invalid character');
+      bits += val.toString(2).padStart(5,'0');
+    }
+    const bytes = [];
+    for(let i=0; i+8<=bits.length; i+=8){
+      bytes.push(parseInt(bits.substr(i,8),2));
+    }
+    if(bytes.length === 0) throw new Error('Secret too short');
+    return new Uint8Array(bytes);
+  }
+
+  function parseOtpauthUri(uriStr){
+    const u = new URL(uriStr);
+    if(u.protocol !== 'otpauth:') throw new Error('Not an otpauth:// URI');
+    const label = decodeURIComponent(u.pathname.replace(/^\/\/?totp\//i,'').replace(/^\//,''));
+    let issuer = u.searchParams.get('issuer') || '';
+    let account = label;
+    if(label.includes(':')){
+      const parts = label.split(':');
+      if(!issuer) issuer = parts[0];
+      account = parts.slice(1).join(':');
+    }
+    const secret = u.searchParams.get('secret');
+    if(!secret) throw new Error('Missing secret');
+    const algoRaw = (u.searchParams.get('algorithm') || 'SHA1').toUpperCase();
+    const algo = algoRaw === 'SHA1' ? 'SHA-1' : algoRaw === 'SHA256' ? 'SHA-256' : algoRaw === 'SHA512' ? 'SHA-512' : 'SHA-1';
+    const digits = parseInt(u.searchParams.get('digits') || '6', 10);
+    const period = parseInt(u.searchParams.get('period') || '30', 10);
+    return { issuer, label: account, secret, algo, digits, period };
+  }
+
+  async function computeTOTP(secretB32, algo, digits, period, atMs){
+    const keyBytes = base32ToBytes(secretB32);
+    const counter = Math.floor((atMs/1000) / period);
+    const buf = new ArrayBuffer(8);
+    const view = new DataView(buf);
+    view.setUint32(0, Math.floor(counter / 2**32));
+    view.setUint32(4, counter >>> 0);
+    const key = await crypto.subtle.importKey('raw', keyBytes, {name:'HMAC', hash:algo}, false, ['sign']);
+    const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, buf));
+    const offset = sig[sig.length-1] & 0x0f;
+    const code = ((sig[offset] & 0x7f) << 24) | ((sig[offset+1] & 0xff) << 16) | ((sig[offset+2] & 0xff) << 8) | (sig[offset+3] & 0xff);
+    const mod = 10 ** digits;
+    return (code % mod).toString().padStart(digits, '0');
+  }
+
+  function groupDigits(code){
+    if(code.length === 6) return code.slice(0,3) + ' ' + code.slice(3);
+    if(code.length === 8) return code.slice(0,4) + ' ' + code.slice(4);
+    return code;
+  }
+
+  let accounts = [];
+  let idSeq = 1;
+
+  function render(){
+    const wrap = document.getElementById('accounts');
+    if(accounts.length === 0){
+      wrap.innerHTML = '<div class="empty">No accounts</div>';
+      return;
+    }
+    wrap.innerHTML = '';
+    for(const acc of accounts){
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = acc.id;
+      card.innerHTML = `
+        <div class="ring-wrap">
+          <svg width="44" height="44" viewBox="0 0 44 44">
+            <circle class="ring-bg" cx="22" cy="22" r="18"></circle>
+            <circle class="ring-fg" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="0"></circle>
+          </svg>
+          <div class="ring-num"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-label"><span class="issuer">${escapeHtml(acc.issuer || 'Account')}</span> ${escapeHtml(acc.label || '')}</div>
+          <div class="card-code">
+            <span class="code-display">— — — — — —</span>
+            <button class="copy-btn-individual" data-action="copy">📋 copy</button>
+          </div>
+          <div class="card-meta">${escapeHtml(acc.algo)} · ${acc.digits}d · ${acc.period}s</div>
+          <div class="copied-flag"></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-danger" data-action="remove">Remove</button>
+        </div>
+      `;
+      card.querySelector('[data-action="copy"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyCode(acc.id);
+      });
+      card.querySelector('.code-display').addEventListener('click', () => copyCode(acc.id));
+      card.querySelector('[data-action="remove"]').addEventListener('click', () => removeAccount(acc.id));
+      wrap.appendChild(card);
+    }
+  }
+
+  let lastCodes = {};
+  async function tick(){
+    const nowMs = correctedNowMs();
+    for(const acc of accounts){
+      try{
+        const code = await computeTOTP(acc.secret, acc.algo, acc.digits, acc.period, nowMs);
+        lastCodes[acc.id] = code;
+        const card = document.querySelector('.card[data-id="'+acc.id+'"]');
+        if(!card) continue;
+        const displayEl = card.querySelector('.code-display');
+        if(displayEl) displayEl.textContent = groupDigits(code);
+        const secsIntoPeriod = Math.floor(nowMs/1000) % acc.period;
+        const remaining = acc.period - secsIntoPeriod;
+        const frac = remaining / acc.period;
+        const circumference = 113.1;
+        const fg = card.querySelector('.ring-fg');
+        fg.setAttribute('stroke-dashoffset', String(circumference * (1-frac)));
+        fg.style.stroke = remaining <= 5 ? '#f87171' : '#4d6bfe';
+        card.querySelector('.ring-num').textContent = remaining;
+      }catch(e){
+        const card = document.querySelector('.card[data-id="'+acc.id+'"]');
+        if(card) {
+          const displayEl = card.querySelector('.code-display');
+          if(displayEl) displayEl.textContent = 'error';
+        }
+      }
+    }
+  }
+  setInterval(tick, 1000);
+
+  function copyCode(id){
+    const code = lastCodes[id];
+    if(!code) return;
+    // copy the raw code without spaces
+    const rawCode = code; // already without spaces
+    const card = document.querySelector('.card[data-id="'+id+'"]');
+    const flag = card.querySelector('.copied-flag');
+    navigator.clipboard.writeText(rawCode).then(() => {
+      flag.textContent = '✓ Copied to clipboard';
+      setTimeout(() => { flag.textContent=''; }, 2000);
+    }).catch(() => {
+      // Fallback
+      const codeEl = card.querySelector('.code-display');
+      // we want to copy raw code, not the displayed one (which has spaces)
+      // we use a temporary input
+      const temp = document.createElement('input');
+      temp.value = rawCode;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
+      flag.textContent = '✓ Copied to clipboard';
+      setTimeout(() => { flag.textContent=''; }, 2000);
+    });
+  }
+
+  function removeAccount(id){
+    accounts = accounts.filter(a => a.id !== id);
+    delete lastCodes[id];
+    render();
+    tick();
+  }
+
+  const modeManualBtn = document.getElementById('modeManual');
+  const modeUriBtn = document.getElementById('modeUri');
+  const manualFields = document.getElementById('manualFields');
+  const uriField = document.getElementById('uriField');
+  modeManualBtn.addEventListener('click', () => {
+    modeManualBtn.classList.add('active'); modeUriBtn.classList.remove('active');
+    manualFields.style.display=''; uriField.style.display='none';
+  });
+  modeUriBtn.addEventListener('click', () => {
+    modeUriBtn.classList.add('active'); modeManualBtn.classList.remove('active');
+    manualFields.style.display='none'; uriField.style.display='';
+  });
+
+  document.getElementById('addBtn').addEventListener('click', async () => {
+    const errEl = document.getElementById('formErr');
+    errEl.textContent = '';
+    try{
+      let acc;
+      if(uriField.style.display !== 'none'){
+        const uri = document.getElementById('fUri').value.trim();
+        if(!uri) throw new Error('Paste an otpauth:// URI');
+        acc = parseOtpauthUri(uri);
+      } else {
+        const secret = document.getElementById('fSecret').value.trim();
+        if(!secret) throw new Error('Enter a Base32 secret');
+        acc = {
+          issuer: document.getElementById('fIssuer').value.trim(),
+          label: document.getElementById('fLabel').value.trim(),
+          secret: secret,
+          algo: document.getElementById('fAlgo').value,
+          digits: parseInt(document.getElementById('fDigits').value, 10),
+          period: parseInt(document.getElementById('fPeriod').value, 10) || 30
+        };
+      }
+      await computeTOTP(acc.secret, acc.algo, acc.digits, acc.period, correctedNowMs());
+      acc.id = idSeq++;
+      acc.secret = acc.secret.toUpperCase().replace(/\s+/g,'');
+      accounts.push(acc);
+      render();
+      tick();
+      document.getElementById('fIssuer').value = '';
+      document.getElementById('fLabel').value = '';
+      document.getElementById('fSecret').value = '';
+      document.getElementById('fUri').value = '';
+    }catch(e){
+      errEl.textContent = e.message || 'Invalid input';
+    }
+  });
+
+  (async function loadFromFragment(){
+    const hash = location.hash;
+    if(!hash || hash.length < 2) return;
+    const raw = hash.slice(1).replace(/^\//,'');
+    if(!raw) return;
+    try{
+      const params = new URLSearchParams(location.search);
+      const secret = decodeURIComponent(raw);
+      const algoRaw = (params.get('algorithm') || 'SHA1').toUpperCase();
+      const algo = algoRaw === 'SHA256' ? 'SHA-256' : algoRaw === 'SHA512' ? 'SHA-512' : 'SHA-1';
+      const digits = parseInt(params.get('digits') || '6', 10);
+      const period = parseInt(params.get('period') || '30', 10);
+      await computeTOTP(secret, algo, digits, period, correctedNowMs());
+      const acc = { issuer: 'From URL', label: '', secret: secret.toUpperCase().replace(/\s+/g,''), algo, digits, period, id: idSeq++ };
+      accounts.push(acc);
+      render(); tick();
+    }catch(e){
+      document.getElementById('formErr').textContent = 'Invalid URL fragment key';
+    } finally {
+      history.replaceState(null, '', location.pathname);
+    }
+  })();
+
+  render();
+})();
+</script>
+</body>
+</html>
