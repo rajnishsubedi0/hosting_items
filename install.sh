@@ -130,7 +130,7 @@ create_vps() {
     
     if [ ! -f "/home/daytona/ubuntu22.qcow2" ]; then
         echo -e "${YELLOW}📥 Downloading Ubuntu 22.04 Cloud Image to /home/daytona/...${NC}"
-        $SUDO_CMD wget -q --show-progress https://https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-arm64.img -O /home/daytona/ubuntu22.qcow2
+        $SUDO_CMD wget -q --show-progress https://https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-arm64.img -O /home/daytona/ubuntu22.qcow2
         $SUDO_CMD chmod 666 /home/daytona/ubuntu22.qcow2
     else
         echo -e "${GREEN}✅ Existing Ubuntu Image Cache Detected at /home/daytona/.${NC}"
